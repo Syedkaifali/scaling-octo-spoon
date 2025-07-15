@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Delivery Tracker - Admin Overview</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f9fafb;
+            margin: 20px;
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #222;
+        }
+
+        .summary-cards {
+            max-width: 900px;
+            margin: 0 auto 40px auto;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            padding: 25px 35px;
+            flex: 1 1 250px;
+            text-align: center;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 5px 18px rgba(0, 0, 0, 0.2);
+        }
+
+        .card h2 {
+            font-size: 48px;
+            margin-bottom: 10px;
+            color: #007bff;
+        }
+
+        .card p {
+            font-size: 18px;
+            color: #555;
+        }
+
+        #charts {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        canvas {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        #refreshBtn {
+            display: block;
+            margin: 0 auto 30px auto;
+            padding: 10px 25px;
+            font-size: 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #refreshBtn:hover {
+            background: #0056b3;
+        }
+
+        #loading {
+            text-align: center;
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #555;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Admin Dashboard Overview</h1>
+
+    <div id="loading">Loading data, please wait...</div>
+
+    <button id="refreshBtn" title="Manually refresh data">Refresh</button>
+
+    <div class="summary-cards" style="display:none;">
+        <div class="card" id="totalOrdersCard">
+            <h2>0</h2>
+            <p>Total Orders</p>
+        </div>
+        <div class="card" id="inTransitCard">
+            <h2>0</h2>
+            <p>In Transit</p>
+        </div>
+        <div class="card" id="deliveredCard">
+            <h2>0</h2>
+            <p>Delivered</p>
+        </div>
+        <div class="card" id="pendingCard">
+            <h2>0</h2>
+            <p>Processing / Pending</p>
+        </div>
+        <div class="card" id="delayedCard">
+            <h2>0</h2>
+            <p>Delayed</p>
+        </div>
+        <div class="card" id="cancelledCard">
+            <h2>0</h2>
+            <p>Cancelled</p>
+        </div>
+    </div>
+
+    <div id="charts" style="max-width:900px; margin:0 auto; display:none;">
+        <canvas id="statusChart" width="900" height="400"></canvas>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        // Firebase config (replace with your actual config)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBbZ0x8YCfWhQ9VcwXumQI_r3Z85QY8aGc",
+            authDomain: "deliverytrackerapp-a351d.firebaseapp.com",
+            projectId: "deliverytrackerapp-a351d",
+            storageBucket: "deliverytrackerapp-a351d.appspot.com",
+            messagingSenderId: "348966590513",
+            appId: "1:348966590513:web:44597871aac4f346545d10",
+            measurementId: "G-0QBWN78FPG"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        const totalOrdersCard = document.getElementById('totalOrdersCard').querySelector('h2');
+        const inTransitCard = document.getElementById('inTransitCard').querySelector('h2');
+        const deliveredCard = document.getElementById('deliveredCard').querySelector('h2');
+        const pendingCard = document.getElementById('pendingCard').querySelector('h2');
+        const delayedCard = document.getElementById('delayedCard').querySelector('h2');
+        const cancelledCard = document.getElementById('cancelledCard').querySelector('h2');
+
+        const loadingDiv = document.getElementById('loading');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const summaryCardsDiv = document.querySelector('.summary-cards');
+        const chartsDiv = document.getElementById('charts');
+
+        let statusChart;
+        let unsubscribeOrdersListener = null;
+
+        function updateDashboard(orders) {
+            const totalOrders = orders.length;
+
+            // Count by status
+            const counts = {
+                'In Transit': 0,
+                'Delivered': 0,
+                'Processing': 0,
+                'Pending': 0,
+                'Delayed': 0,
+                'Cancelled': 0
+            };
+
+            orders.forEach(order => {
+                const s = order.status || 'Processing';
+                if (s in counts) {
+                    counts[s]++;
+                } else {
+                    // If unknown status, count as 'Processing'
+                    counts['Processing']++;
+                }
+            });
+
+            const processingPending = counts['Processing'] + counts['Pending'];
+
+            totalOrdersCard.textContent = totalOrders;
+            inTransitCard.textContent = counts['In Transit'];
+            deliveredCard.textContent = counts['Delivered'];
+            pendingCard.textContent = processingPending;
+            delayedCard.textContent = counts['Delayed'];
+            cancelledCard.textContent = counts['Cancelled'];
+
+            // Update Chart
+            const labels = ['In Transit', 'Delivered', 'Pending', 'Delayed', 'Cancelled'];
+            const data = [
+                counts['In Transit'],
+                counts['Delivered'],
+                processingPending,
+                counts['Delayed'],
+                counts['Cancelled']
+            ];
+
+            if (statusChart) {
+                statusChart.data.datasets[0].data = data;
+                statusChart.update();
+            } else {
+                const ctx = document.getElementById('statusChart').getContext('2d');
+                statusChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'Order Status Breakdown',
+                            data,
+                            backgroundColor: [
+                                '#007bff',
+                                '#28a745',
+                                '#ffc107',
+                                '#dc3545',
+                                '#6c757d'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            },
+                            tooltip: {
+                                enabled: true
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Listen for changes in orders collection for live update
+        function listenOrdersRealtime() {
+            if (unsubscribeOrdersListener) {
+                unsubscribeOrdersListener(); // stop previous listener
+            }
+
+            unsubscribeOrdersListener = db.collection('orders')
+                .onSnapshot(snapshot => {
+                    const orders = [];
+                    snapshot.forEach(doc => {
+                        orders.push(doc.data());
+                    });
+                    updateDashboard(orders);
+                    loadingDiv.style.display = 'none';
+                    summaryCardsDiv.style.display = 'flex';
+                    chartsDiv.style.display = 'block';
+                }, error => {
+                    console.error("Realtime order listener error:", error);
+                    alert("Failed to get real-time order updates.");
+                    loadingDiv.textContent = "Failed to load data.";
+                });
+        }
+
+        // Check if user is admin
+        function checkAdmin(uid) {
+            return db.collection('users').doc(uid).get().then(doc => {
+                if (!doc.exists) {
+                    return false;
+                }
+                const data = doc.data();
+                return data.role === 'admin';
+            });
+        }
+
+        // On auth state changed
+        auth.onAuthStateChanged(async user => {
+            if (!user) {
+                // Not logged in, redirect to login page or show message
+                alert("Please log in as admin to access this page.");
+                window.location.href = "login.html"; // Change this to your login page
+                return;
+            }
+
+            // User is admin - start realtime updates
+            listenOrdersRealtime();
+        });
+
+        // Manual refresh button click
+        refreshBtn.addEventListener('click', () => {
+            loadingDiv.style.display = 'block';
+            loadingDiv.textContent = 'Refreshing data...';
+            db.collection('orders').get()
+                .then(snapshot => {
+                    const orders = [];
+                    snapshot.forEach(doc => orders.push(doc.data()));
+                    updateDashboard(orders);
+                    loadingDiv.style.display = 'none';
+                    summaryCardsDiv.style.display = 'flex';
+                    chartsDiv.style.display = 'block';
+                })
+                .catch(err => {
+                    console.error("Error fetching orders:", err);
+                    alert("Failed to refresh data.");
+                    loadingDiv.textContent = "Failed to load data.";
+                });
+        });
+    </script>
+</body>
+
+</html>

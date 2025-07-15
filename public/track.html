@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Track Your Order</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f7fa;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        input,
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            border: none;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+
+        }
+
+        button:hover,
+        button:focus {
+            background-color: #0056b3;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            outline: none;
+        }
+
+        button.loading::after {
+            content: '⏳';
+            margin-left: 8px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        button.loading {
+            position: relative;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .result {
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            pointer-events: none;
+        }
+
+        .result.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .label {
+            font-weight: bold;
+            margin-top: 10px;
+            display: inline-block;
+            min-width: 90px;
+        }
+
+        #map {
+            height: 300px;
+            border-radius: 10px;
+        }
+
+        @media (max-width: 600px) {
+            #map {
+                height: 200px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Track Your Order</h1>
+
+    <div class="container">
+        <input type="text" id="trackingInput" placeholder="Enter Tracking ID..." />
+        <button id="trackBtn">Track Order</button>
+
+        <div class="result" id="result" style="display: none;">
+            <p><span class="label">Tracking ID:</span> <span id="trackId"></span></p>
+            <p><span class="label">Status:</span> <span id="trackStatus"></span></p>
+            <p><span class="label">Location:</span> <span id="trackLocation"></span></p>
+            <p><span class="label">Coordinates:</span> <span id="trackCoords"></span></p>
+            <p><span class="label">Estimated Delivery Date:</span> <span id="trackDeliveryDate"></span></p>
+            <p><span class="label">Last Updated:</span> <span id="trackTime"></span></p>
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBbZ0x8YCfWhQ9VcwXumQI_r3Z85QY8aGc",
+            authDomain: "deliverytrackerapp-a351d.firebaseapp.com",
+            projectId: "deliverytrackerapp-a351d",
+            storageBucket: "deliverytrackerapp-a351d.appspot.com",
+            messagingSenderId: "348966590513",
+            appId: "1:348966590513:web:44597871aac4f346545d10",
+            measurementId: "G-0QBWN78FPG"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let map;
+
+        function initMap(lat, lng) {
+            if (map) {
+                map.remove();
+            }
+            map = L.map('map').setView([lat, lng], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution:
+                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            }).addTo(map);
+
+            L.marker([lat, lng]).addTo(map)
+                .bindPopup('Current Order Location')
+                .openPopup();
+        }
+
+        async function trackOrder() {
+            const id = document.getElementById('trackingInput').value.trim();
+            const trackBtn = document.getElementById('trackBtn');
+            const resultDiv = document.getElementById('result');
+
+            if (!id) return alert("Please enter a valid Tracking ID");
+
+            trackBtn.disabled = true;
+            trackBtn.classList.add('loading');
+            trackBtn.textContent = "Tracking...";
+
+            try {
+                const doc = await db.collection('orders').doc(id).get();
+
+                if (!doc.exists) {
+                    alert("No order found with this Tracking ID.");
+                    resultDiv.style.display = "none";
+                    return;
+                }
+
+                const data = doc.data();
+
+                document.getElementById('trackId').textContent = id;
+                document.getElementById('trackStatus').textContent = data.status || 'N/A';
+                document.getElementById('trackLocation').textContent = data.location || 'Unknown';
+                document.getElementById('trackCoords').textContent = (data.latitude && data.longitude) ? `${data.latitude}, ${data.longitude}` : "Not available";
+                document.getElementById('trackTime').textContent = data.timestamp?.toDate().toLocaleString() || "N/A";
+                document.getElementById('trackDeliveryDate').textContent = data.expectedDelivery?.toDate().toLocaleString() || "N/A";
+                resultDiv.style.display = "block";
+                setTimeout(() => resultDiv.classList.add('show'), 10);
+
+                if (data.latitude && data.longitude) {
+                    initMap(data.latitude, data.longitude);
+                } else {
+                    if (map) {
+                        map.remove();
+                    }
+                    document.getElementById('map').innerHTML = "No map data available.";
+                }
+
+            } catch (err) {
+                console.error("Error fetching order:", err);
+                alert("Error fetching order data.");
+                resultDiv.style.display = "none";
+            } finally {
+                trackBtn.disabled = false;
+                trackBtn.classList.remove('loading');
+                trackBtn.textContent = "Track Order";
+            }
+        }
+        document.getElementById('trackingInput').addEventListener('keyup', function (e) {
+            if (e.key === 'Enter') {
+                document.getElementById('trackBtn').click();
+            }
+        });
+
+
+        document.getElementById('trackBtn').addEventListener('click', trackOrder);
+    </script>
+</body>
+
+</html>

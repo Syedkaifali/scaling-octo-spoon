@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Delivery Tracker Admin Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f7fa;
+            margin: 20px;
+            padding: 0;
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #222;
+        }
+
+        form {
+            max-width: 400px;
+            margin: 0 auto 40px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        form input,
+        form select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            border: 1px solid #bbb;
+            font-size: 16px;
+        }
+
+        form button {
+            width: 100%;
+            background: #007bff;
+            color: white;
+            font-size: 18px;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        form button:hover {
+            background: #0056b3;
+        }
+
+        table {
+            width: 90%;
+            max-width: 1000px;
+            margin: 0 auto;
+            border-collapse: collapse;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th,
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #007bff;
+            color: white;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background: #f1f9ff;
+        }
+
+        .timestamp {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .status {
+            font-weight: 600;
+            color: #007bff;
+        }
+
+        .actions button {
+            margin-right: 6px;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .edit-btn {
+            background: #ffc107;
+            color: white;
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+        }
+
+        #authSection {
+            max-width: 400px;
+            margin: 0 auto 40px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        #authSection input {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        #authSection button {
+            width: 90%;
+            margin-top: 10px;
+            background: #28a745;
+            color: #fff;
+            font-size: 16px;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        #authSection button:hover {
+            background: #218838;
+        }
+
+        /* Modal styles */
+        #deleteModal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.6);
+        }
+
+        .modal-content {
+            background-color: #fff;
+            margin: 10% auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 20px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: space-around;
+        }
+
+        .modal-buttons button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .cancel-btn {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .confirm-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .cancel-btn:hover {
+            background-color: #5a6268;
+        }
+
+        .confirm-btn:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Delivery Tracker Admin Dashboard</h1>
+
+    <div id="authSection">
+        <h2>Admin Login</h2>
+        <input type="email" id="email" placeholder="Email" />
+        <input type="password" id="password" placeholder="Password" />
+        <button onclick="login()">Login</button>
+        <p id="authMsg" style="color:red;"></p>
+    </div>
+
+    <div id="dashboard" style="display: none;">
+        <form id="orderForm">
+            <input type="text" id="trackingId" placeholder="Tracking ID" required />
+            <input type="text" id="location" placeholder="Current Location" required />
+            <select id="status" required>
+                <option value="" disabled selected>Status</option>
+                <option value="Processing">Processing</option>
+                <option value="In Transit">In Transit</option>
+                <option value="Delivered">Delivered</option>
+                <option value="Delayed">Delayed</option>
+                <option value="Cancelled">Cancelled</option>
+            </select>
+            <input type="datetime-local" id="expectedDelivery" />
+            <button type="submit">Add / Update Order</button>
+        </form>
+
+        <table id="ordersTable">
+            <thead>
+                <tr>
+                    <th>Tracking ID</th>
+                    <th>Location</th>
+                    <th>Status</th>
+                    <th>Last Updated</th>
+                    <th>Expected Delivery</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <div style="text-align:center; margin-top: 20px;">
+            <button id="goToDashboardBtn"
+                style="padding: 12px 24px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                Go to Admin Dashboard Overview
+            </button>
+        </div>
+
+        <script>
+            document.getElementById('goToDashboardBtn').addEventListener('click', () => {
+                window.location.href = 'dashboard.html';
+            });
+        </script>
+
+
+        <div style="text-align:center; margin-top: 20px;">
+            <button onclick="logout()"
+                style="padding: 10px 20px; background:#dc3545; color:white; border:none; border-radius:6px; cursor:pointer;">
+                Logout
+            </button>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal">
+        <div class="modal-content">
+            <h3>Are you sure you want to delete this order?</h3>
+            <p id="deleteTrackingId"></p>
+            <div class="modal-buttons">
+                <button class="cancel-btn" onclick="closeDeleteModal()">Cancel</button>
+                <button class="confirm-btn" onclick="confirmDelete()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBbZ0x8YCfWhQ9VcwXumQI_r3Z85QY8aGc",
+            authDomain: "deliverytrackerapp-a351d.firebaseapp.com",
+            projectId: "deliverytrackerapp-a351d",
+            storageBucket: "deliverytrackerapp-a351d.appspot.com",
+            messagingSenderId: "348966590513",
+            appId: "1:348966590513:web:44597871aac4f346545d10",
+            measurementId: "G-0QBWN78FPG"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        let editMode = false;
+        let currentEditId = null;
+        let deleteTargetId = null;
+
+        auth.onAuthStateChanged(user => {
+            document.getElementById('authSection').style.display = user ? 'none' : 'block';
+            document.getElementById('dashboard').style.display = user ? 'block' : 'none';
+        });
+
+        function login() {
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value.trim();
+            auth.signInWithEmailAndPassword(email, password)
+                .catch(err => document.getElementById('authMsg').textContent = err.message);
+        }
+
+        function logout() {
+            firebase.auth().signOut().then(() => window.location.reload());
+        }
+
+        const orderForm = document.getElementById('orderForm');
+        const ordersTableBody = document.querySelector('#ordersTable tbody');
+
+        async function fetchLatLongFromLocation(locationName) {
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationName)}`);
+            const data = await response.json();
+            if (data.length > 0) {
+                return { latitude: parseFloat(data[0].lat), longitude: parseFloat(data[0].lon) };
+            } else throw new Error("Location not found");
+        }
+
+        orderForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const trackingId = document.getElementById('trackingId').value.trim();
+            const location = document.getElementById('location').value.trim();
+            const status = document.getElementById('status').value;
+            const expectedDeliveryInput = document.getElementById('expectedDelivery').value;
+
+            if (!trackingId || !location || !status) return alert('Please fill all fields!');
+
+            try {
+                const { latitude, longitude } = await fetchLatLongFromLocation(location);
+                let expectedDeliveryTimestamp = expectedDeliveryInput
+                    ? firebase.firestore.Timestamp.fromDate(new Date(expectedDeliveryInput))
+                    : null;
+
+                await db.collection('orders').doc(trackingId).set({
+                    trackingId,
+                    location,
+                    status,
+                    latitude,
+                    longitude,
+                    expectedDelivery: expectedDeliveryTimestamp,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                alert(editMode ? 'Order updated!' : 'Order added!');
+                orderForm.reset();
+                editMode = false;
+                currentEditId = null;
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Location invalid or error occurred.');
+            }
+        });
+
+        function populateForm(order) {
+            document.getElementById('trackingId').value = order.trackingId;
+            document.getElementById('location').value = order.location;
+            document.getElementById('status').value = order.status;
+            document.getElementById('expectedDelivery').value = order.expectedDelivery
+                ? new Date(order.expectedDelivery.toDate()).toISOString().slice(0, 16)
+                : '';
+            editMode = true;
+            currentEditId = order.trackingId;
+        }
+
+        function openDeleteModal(trackingId) {
+            deleteTargetId = trackingId;
+            document.getElementById('deleteTrackingId').innerText = `Tracking ID: ${trackingId}`;
+            document.getElementById('deleteModal').style.display = 'block';
+        }
+
+        function closeDeleteModal() {
+            deleteTargetId = null;
+            document.getElementById('deleteModal').style.display = 'none';
+        }
+
+        async function confirmDelete() {
+            if (deleteTargetId) {
+                await db.collection('orders').doc(deleteTargetId).delete();
+                closeDeleteModal();
+            }
+        }
+
+        db.collection('orders').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+            ordersTableBody.innerHTML = '';
+            if (snapshot.empty) {
+                ordersTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No orders yet</td></tr>';
+                return;
+            }
+            snapshot.forEach(doc => {
+                const order = doc.data();
+                const timeString = order.timestamp ? order.timestamp.toDate().toLocaleString() : 'Loading...';
+                const expectedDeliveryString = order.expectedDelivery ? order.expectedDelivery.toDate().toLocaleString() : 'N/A';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+          <td>${order.trackingId}</td>
+          <td>${order.location}</td>
+          <td class="status">${order.status}</td>
+          <td class="timestamp">${timeString}</td>
+          <td>${expectedDeliveryString}</td>
+          <td class="actions">
+            <button class="edit-btn" onclick='populateForm(${JSON.stringify(order)})'>Edit</button>
+            <button class="delete-btn" onclick='openDeleteModal("${order.trackingId}")'>Delete</button>
+          </td>
+        `;
+                ordersTableBody.appendChild(tr);
+            });
+        });
+    </script>
+</body>
+
+</html>

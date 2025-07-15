@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Delivery Tracker | Home</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    h1 {
+      font-weight: 700;
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      text-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+    p.subtitle {
+      font-weight: 400;
+      font-size: 1.1rem;
+      margin-bottom: 40px;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.25);
+      max-width: 400px;
+      text-align: center;
+    }
+
+    .btn-container {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+      max-width: 600px;
+    }
+
+    a.btn {
+      flex: 1 1 250px;
+      background: #fff;
+      color: #007bff;
+      text-decoration: none;
+      padding: 20px 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      text-align: center;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0, 123, 255, 0.4);
+      transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    a.btn:hover,
+    a.btn:focus {
+      background: #0056b3;
+      color: #fff;
+      box-shadow: 0 12px 30px rgba(0, 86, 179, 0.7);
+      outline: none;
+    }
+
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 2rem;
+      }
+
+      .btn-container {
+        gap: 20px;
+      }
+
+      a.btn {
+        font-size: 1rem;
+        padding: 15px 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Delivery Tracker</h1>
+  <p class="subtitle">Welcome to Aleeze by Aliza Delivery Tracking. Seamlessly manage deliveries and track your orders with style and ease
+
+  <div class="btn-container">
+     <a href="track.html" class="btn" aria-label="Track Your Order">Track Your Order</a>
+    <a href="admin.html" class="btn" aria-label="Admin Login">Login</a>
+   
+  </div>
+</body>
+</html>

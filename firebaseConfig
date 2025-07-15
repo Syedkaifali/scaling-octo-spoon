@@ -1,0 +1,14 @@
+const firebaseConfig = {
+  apiKey: "AIzaSyBbZ0x8YCfWhQ9VcwXumQI_r3Z85QY8aGc",
+  authDomain: "deliverytrackerapp-a351d.firebaseapp.com",
+  projectId: "deliverytrackerapp-a351d",
+  storageBucket: "deliverytrackerapp-a351d.firebasestorage.app",
+  messagingSenderId: "348966590513",
+  appId: "1:348966590513:web:44597871aac4f346545d10",
+  measurementId: "G-0QBWN78FPG"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
